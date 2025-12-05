@@ -1,0 +1,89 @@
+# ==============================================================================
+# ROS2 工作空间 Git Ignore 配置
+# ==============================================================================
+
+# ==================== 编译产物 ====================
+# colcon 编译目录
+build/
+install/
+log/
+
+# CMake 产物
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# ==================== 输出文件 ====================
+# 检测输出视频（不上传，体积大且可重新生成）
+output/
+
+# ==================== IDE 配置 ====================
+# VSCode
+.vscode/
+*.code-workspace
+
+# CLion
+.idea/
+cmake-build-*/
+
+# Eclipse
+.project
+.cproject
+.settings/
+
+# ==================== 系统文件 ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+# ==================== 临时文件 ====================
+*.swp
+*.swo
+*.tmp
+*.bak
+*.log
+
+# ==================== Python ====================
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+
+# ==================== C++ ====================
+# 编译产物
+*.o
+*.obj
+*.so
+*.a
+*.dll
+*.dylib
+
+# 调试文件
+*.dSYM/
+# core dump 文件（仅匹配根目录或特定模式，避免误伤 src/core 目录）
+/core
+core.[0-9]*
+
+# ==================== 其他 ====================
+# 备份文件
+*.orig
+*.backup
+
+# 标识文件（colcon 生成）
+COLCON_IGNORE
+
+# Windows Zone.Identifier 元数据文件
+*:Zone.Identifier
