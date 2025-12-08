@@ -1,0 +1,11 @@
+%YAML:1.0
+# Invalid camera intrinsics configuration file
+# Used for testing error handling
+
+# Invalid camera matrix (wrong size)
+camera_matrix: !!opencv-matrix
+  rows: 2
+  cols: 2
+  dt: d
+  data: [1000.0, 0.0,
+         0.0, 1000.0]

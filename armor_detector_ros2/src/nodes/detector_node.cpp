@@ -30,6 +30,53 @@
 
 using namespace std::chrono_literals;
 
+// ==================== 颜色校正函数 ====================
+/**
+ * @brief 基于像素颜色校正装甲板颜色
+ * @param frame RGB格式的图像
+ * @param corners 装甲板四个角点
+ * @return 校正后的颜色ID (0=蓝色, 1=红色)
+ * 
+ * 通过分析装甲板区域的红蓝通道比例来判断颜色，
+ * 比模型输出更可靠
+ */
+inline int correctColorByPixel(const cv::Mat& frame, const cv::Point2f corners[4]) {
+    // 计算装甲板区域的边界框
+    float min_x = std::min({corners[0].x, corners[1].x, corners[2].x, corners[3].x});
+    float max_x = std::max({corners[0].x, corners[1].x, corners[2].x, corners[3].x});
+    float min_y = std::min({corners[0].y, corners[1].y, corners[2].y, corners[3].y});
+    float max_y = std::max({corners[0].y, corners[1].y, corners[2].y, corners[3].y});
+    
+    // 确保边界在图像范围内
+    min_x = std::max(0.0f, min_x);
+    min_y = std::max(0.0f, min_y);
+    max_x = std::min(static_cast<float>(frame.cols - 1), max_x);
+    max_y = std::min(static_cast<float>(frame.rows - 1), max_y);
+    
+    if (max_x <= min_x || max_y <= min_y) {
+        return 0; // 默认返回蓝色
+    }
+    
+    // 提取ROI区域
+    cv::Rect roi(static_cast<int>(min_x), static_cast<int>(min_y),
+                 static_cast<int>(max_x - min_x), static_cast<int>(max_y - min_y));
+    cv::Mat armor_region = frame(roi);
+    
+    // 计算红蓝通道的总和
+    // 注意：frame是RGB格式，所以 channel 0 = R, channel 2 = B
+    long long red_sum = 0, blue_sum = 0;
+    for (int y = 0; y < armor_region.rows; y++) {
+        for (int x = 0; x < armor_region.cols; x++) {
+            cv::Vec3b pixel = armor_region.at<cv::Vec3b>(y, x);
+            red_sum += pixel[0];   // R channel in RGB
+            blue_sum += pixel[2];  // B channel in RGB
+        }
+    }
+    
+    // 红色通道大于蓝色通道则为红色装甲板
+    return (red_sum > blue_sum) ? 1 : 0;
+}
+
 // ==================== 类别名称映射 ====================
 /**
  * @brief 获取装甲板类别名称
@@ -107,11 +154,13 @@ public:
         this->declare_parameter<std::string>("armor_model_path", "");
         this->declare_parameter<std::string>("classifier_model_path", "");
         this->declare_parameter<int>("color_flag", -1);  // -1表示不过滤颜色
+        this->declare_parameter<bool>("use_pixel_color_correction", true);  // 使用像素颜色校正
 
         // 获取参数
         armor_model_path_ = this->get_parameter("armor_model_path").as_string();
         classifier_model_path_ = this->get_parameter("classifier_model_path").as_string();
         int color_flag = this->get_parameter("color_flag").as_int();
+        use_pixel_color_correction_ = this->get_parameter("use_pixel_color_correction").as_bool();
 
         // 验证模型路径
         if (armor_model_path_.empty() || classifier_model_path_.empty()) {
@@ -197,6 +246,20 @@ private:
             RCLCPP_ERROR(this->get_logger(), "检测失败: %s", e.what());
             return;
         }
+        
+        // 颜色校正：使用像素颜色覆盖模型输出
+        if (use_pixel_color_correction_) {
+            for (auto& det : detections) {
+                int corrected_color = correctColorByPixel(frame, det.corners);
+                if (det.color_id != corrected_color) {
+                    RCLCPP_DEBUG(this->get_logger(), 
+                        "颜色校正: 模型输出=%s, 像素校正=%s",
+                        det.color_id == 0 ? "蓝" : "红",
+                        corrected_color == 0 ? "蓝" : "红");
+                }
+                det.color_id = corrected_color;
+            }
+        }
 
         // 记录结束时间
         auto end_time = std::chrono::high_resolution_clock::now();
@@ -237,39 +300,24 @@ private:
         // 发布检测结果
         armor_pub_->publish(armor_array_msg);
 
-        // ==================== 在图像上绘制检测结果 ====================
+        // ==================== 在图像上绘制检测结果（交叉连接角点，根据颜色绘制） ====================
         for (const auto& det : detections) {
-            // 获取绘制颜色（根据装甲板颜色）
-            cv::Scalar draw_color = getDrawColor(det.color_id);
+            // 根据检测到的装甲板颜色选择绘制颜色
+            // color_id: 0=蓝色, 1=红色
+            // 注意：此时 frame 是 RGB 格式，所以颜色值也是 RGB
+            cv::Scalar draw_color = (det.color_id == 0) ? 
+                cv::Scalar(0, 0, 255) :   // 蓝色装甲板 -> 蓝色线条 (RGB: B=255)
+                cv::Scalar(255, 0, 0);    // 红色装甲板 -> 红色线条 (RGB: R=255)
             
-            // 绘制四边形轮廓
-            cv::line(frame, det.corners[0], det.corners[1], draw_color, 2);
-            cv::line(frame, det.corners[1], det.corners[2], draw_color, 2);
-            cv::line(frame, det.corners[2], det.corners[3], draw_color, 2);
-            cv::line(frame, det.corners[3], det.corners[0], draw_color, 2);
+            // 交叉连接角点 (0-2, 1-3)
+            cv::line(frame, det.corners[0], det.corners[2], draw_color, 2);
+            cv::line(frame, det.corners[1], det.corners[3], draw_color, 2);
             
-            // 组合标签：颜色+类别，例如 "R-Hero", "B-Sentry"
-            std::string label = getColorName(det.color_id) + "-" + getTagName(det.tag_id);
-            
-            // 绘制标签背景框（提高可读性）
-            int baseline = 0;
-            cv::Size text_size = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.6, 2, &baseline);
-            cv::Point text_pos(det.corners[0].x, det.corners[0].y - 5);
-            cv::rectangle(frame, 
-                         cv::Point(text_pos.x - 2, text_pos.y - text_size.height - 2),
-                         cv::Point(text_pos.x + text_size.width + 2, text_pos.y + 2),
-                         cv::Scalar(0, 0, 0), -1);
-            
-            // 绘制文字标签
-            cv::putText(frame, label, text_pos, 
-                       cv::FONT_HERSHEY_SIMPLEX, 0.6, draw_color, 2);
-            
-            // 绘制置信度
-            char conf_text[16];
-            snprintf(conf_text, sizeof(conf_text), "%.0f%%", det.confidence * 100);
-            cv::putText(frame, conf_text, 
-                       cv::Point(det.corners[1].x, det.corners[1].y - 5),
-                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+            // 显示 tag_id、颜色和名称，格式: "R-1:Hero" 或 "B-1:Hero"
+            std::string color_prefix = (det.color_id == 0) ? "B-" : "R-";
+            std::string label = color_prefix + std::to_string(det.tag_id) + ":" + getTagName(det.tag_id);
+            cv::putText(frame, label, det.corners[0],
+                       cv::FONT_HERSHEY_SIMPLEX, 0.7, draw_color, 2);
         }
 
         // 添加统计信息
@@ -313,6 +361,7 @@ private:
     // 参数
     std::string armor_model_path_;
     std::string classifier_model_path_;
+    bool use_pixel_color_correction_ = true;  // 是否使用像素颜色校正
 
     // 统计
     int frame_count_ = 0;

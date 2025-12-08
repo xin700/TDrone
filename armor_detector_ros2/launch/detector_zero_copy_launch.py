@@ -27,11 +27,11 @@ from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
-    # 默认配置
-    default_armor_model = '/home/xin/ROS2Drone/OrangeAim-Drone/utils/models/armor_yolo_x.xml'
-    default_classifier_model = '/home/xin/ROS2Drone/OrangeAim-Drone/utils/models/classifier.xml'
-    default_video = '/home/xin/ROS2Drone/OrangeAim-Drone/utils/红方前哨站公路视角全速.mp4'
-    default_output = '/home/xin/ROS2Drone/ws/output/detection_zero_copy.mp4'
+    # 默认配置 (使用 Docker 容器内路径 /ros2_ws)
+    default_armor_model = '/ros2_ws/models/BRpoints_nano.xml'
+    default_classifier_model = '/ros2_ws/models/classifier.xml'
+    default_video = '/ros2_ws/videos/sample.avi'
+    default_output = '/ros2_ws/output/detection_zero_copy.mp4'
     
     # ==================== 声明启动参数 ====================
     video_path_arg = DeclareLaunchArgument(

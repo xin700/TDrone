@@ -18,15 +18,16 @@
 namespace DETECTOR
 {
     // ==================== 模型参数 ====================
+    // 与 OrangeAim-Drone 保持一致，使用 BRpoints_nano 模型
     static constexpr int INPUT_W = 416;           // 输入图像宽度
     static constexpr int INPUT_H = 416;           // 输入图像高度
-    // 模型输出: [1, 3549, 25]
-    // 25 = 8(corners) + 1(objectness) + 4(colors) + 12(classes)
-    // 颜色: 0=蓝, 1=红, 2=灰, 3=紫
-    // 类别: 0-11 (由NumberClassifier重新分类)
-    static constexpr int NUM_CLASSES = 12;        // 类别数
-    static constexpr int NUM_COLORS = 4;          // 颜色数
-    static constexpr int OUTPUT_DIM = 25;         // 模型每个anchor的输出维度
+    // BRpoints_nano 模型输出: [1, 3549, 12]
+    // 12 = 8(corners: x1,y1,x2,y2,x3,y3,x4,y4) + 1(objectness) + 2(colors) + 1(class)
+    // 颜色: 0=蓝, 1=红
+    // 类别: 由 NumberClassifier 重新分类
+    static constexpr int NUM_CLASSES = 1;         // 类别数（BRpoints_nano）
+    static constexpr int NUM_COLORS = 2;          // 颜色数（BRpoints_nano: 蓝/红）
+    static constexpr int OUTPUT_DIM = 9 + NUM_COLORS + NUM_CLASSES;  // 12维
     static constexpr int TOPK = 128;              // 保留的最大候选框数
     static constexpr float NMS_THRESH = 0.3;      // NMS阈值
     static constexpr float BBOX_CONF_THRESH = 0.5; // 置信度阈值
@@ -212,6 +213,10 @@ namespace DETECTOR
 
             // 解码objectness和分类
             float box_objectness = feat_ptr[basic_pos + 8];
+            
+            // 获取颜色概率（用于调试）
+            float blue_prob = feat_ptr[basic_pos + 9];
+            float red_prob = feat_ptr[basic_pos + 10];
             int box_color = argmax(feat_ptr + basic_pos + 9, NUM_COLORS);
             int box_class = argmax(feat_ptr + basic_pos + 9 + NUM_COLORS, NUM_CLASSES);
 
@@ -258,6 +263,10 @@ namespace DETECTOR
                 bbox.color_id = box_color;
                 bbox.confidence = box_prob;
                 bbox.area = bbox.rect.area();
+                
+                // 调试：输出颜色概率
+                // printf("[DEBUG] Color probs: blue=%.3f, red=%.3f -> %s\n", 
+                //        blue_prob, red_prob, box_color == 0 ? "BLUE" : "RED");
                 
                 bboxes.push_back(bbox);
             }

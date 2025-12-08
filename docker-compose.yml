@@ -1,0 +1,86 @@
+services:
+  # Default development service (headless, no GUI)
+  ros2-vision:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ros2-vision:humble
+    container_name: ros2-vision-dev
+    
+    # Use host network for ROS2 DDS communication
+    network_mode: host
+    
+    # Privileged mode for hardware access (cameras, serial ports, CAN)
+    privileged: true
+    
+    # Environment variables
+    environment:
+      - ROS_DOMAIN_ID=0
+      # OpenVINO environment
+      - OPENVINO_DIR=/opt/intel/openvino_2024
+      # Force use system Python (not Anaconda from host)
+      - PYTHON_EXECUTABLE=/usr/bin/python3
+      - Python3_EXECUTABLE=/usr/bin/python3
+      # Prevent CMake from finding host's Anaconda
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    
+    # Volume mounts - 挂载当前目录到 /ros2_ws
+    volumes:
+      # 挂载当前目录（ws）到 /ros2_ws
+      - ./:/ros2_ws:rw
+      # 构建产物使用 Docker volumes（提高性能）
+      - ros2_build_cache:/ros2_ws/build
+      - ros2_install_cache:/ros2_ws/install
+      - ros2_log_cache:/ros2_ws/log
+    
+    # Device access
+    devices:
+      # Intel GPU for OpenVINO
+      - /dev/dri:/dev/dri
+    
+    # Interactive terminal
+    stdin_open: true
+    tty: true
+    
+    # Working directory
+    working_dir: /ros2_ws
+
+  # GUI-enabled service (optional, for visualization)
+  ros2-vision-gui:
+    extends:
+      service: ros2-vision
+    container_name: ros2-vision-gui
+    
+    # Additional environment for X11
+    environment:
+      - ROS_DOMAIN_ID=0
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    
+    # Additional volumes for X11
+    volumes:
+      - ./:/ros2_ws:rw
+      - ros2_build_cache:/ros2_ws/build
+      - ros2_install_cache:/ros2_ws/install
+      - ros2_log_cache:/ros2_ws/log
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+  # Hardware testing service with full device access
+  ros2-vision-hardware:
+    extends:
+      service: ros2-vision
+    container_name: ros2-vision-hardware
+    
+    # Full device access for hardware testing
+    volumes:
+      - ./:/ros2_ws:rw
+      - ros2_build_cache:/ros2_ws/build
+      - ros2_install_cache:/ros2_ws/install
+      - ros2_log_cache:/ros2_ws/log
+      - /dev:/dev:rw
+
+# Named volumes for build cache persistence
+volumes:
+  ros2_build_cache:
+  ros2_install_cache:
+  ros2_log_cache:

@@ -1,16 +1,19 @@
 /**
- * @file video_publisher_node.cpp
- * @brief 视频发布ROS2节点
+ * @file mock_camera_node.cpp
+ * @brief 模拟相机 ROS2 节点
  * 
- * 功能：从视频文件读取帧并发布到ROS2话题
+ * 功能：从视频文件读取帧并发布到 /camera/image_raw 话题
+ * 用于开发和测试时模拟真实相机输入
  * 
  * 发布话题：
- * - /video/image_raw (sensor_msgs/Image): 原始图像
+ * - /camera/image_raw (sensor_msgs/Image): 原始图像
  * 
  * 参数：
  * - video_path: 视频文件路径
  * - fps: 发布帧率（默认30）
  * - loop: 是否循环播放（默认true）
+ * 
+ * Requirements: 9.3
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -23,12 +26,12 @@
 using namespace std::chrono_literals;
 
 /**
- * @class VideoPublisherNode
- * @brief 视频发布节点类
+ * @class MockCameraNode
+ * @brief 模拟相机节点类
  * 
- * 使用OpenCV读取视频文件，通过定时器按设定帧率发布图像
+ * 使用 OpenCV 读取视频文件，通过定时器按设定帧率发布图像到 /camera/image_raw
  */
-class VideoPublisherNode : public rclcpp::Node
+class MockCameraNode : public rclcpp::Node
 {
 public:
     /**
@@ -40,7 +43,7 @@ public:
      * 3. 创建发布者
      * 4. 创建定时器
      */
-    VideoPublisherNode() : Node("video_publisher_node")
+    MockCameraNode() : Node("mock_camera_node")
     {
         // ==================== 参数声明 ====================
         this->declare_parameter<std::string>("video_path", "");
@@ -73,12 +76,7 @@ public:
         frame_width_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH));
         frame_height_ = static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT));
 
-        // 如果 fps <= 0，使用视频原始帧率
-        if (fps_ <= 0) {
-            fps_ = video_fps_;
-        }
-
-        RCLCPP_INFO(this->get_logger(), "视频信息:");
+        RCLCPP_INFO(this->get_logger(), "MockCamera 视频信息:");
         RCLCPP_INFO(this->get_logger(), "  路径: %s", video_path_.c_str());
         RCLCPP_INFO(this->get_logger(), "  原始帧率: %.2f FPS", video_fps_);
         RCLCPP_INFO(this->get_logger(), "  发布帧率: %.2f FPS", fps_);
@@ -87,21 +85,42 @@ public:
         RCLCPP_INFO(this->get_logger(), "  循环播放: %s", loop_ ? "是" : "否");
 
         // ==================== 创建发布者 ====================
+        // 发布到 /camera/image_raw 话题（与真实相机节点一致）
         image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
-            "/video/image_raw", 
+            "/camera/image_raw", 
             rclcpp::QoS(10).reliable()
         );
 
         // ==================== 创建定时器 ====================
-        // 根据设定的fps计算定时器周期
+        // 根据设定的 fps 计算定时器周期
         auto period = std::chrono::duration<double>(1.0 / fps_);
         timer_ = this->create_wall_timer(
             std::chrono::duration_cast<std::chrono::nanoseconds>(period),
-            std::bind(&VideoPublisherNode::timer_callback, this)
+            std::bind(&MockCameraNode::timer_callback, this)
         );
 
-        RCLCPP_INFO(this->get_logger(), "视频发布节点已启动");
+        RCLCPP_INFO(this->get_logger(), "MockCamera 节点已启动，发布到 /camera/image_raw");
     }
+
+    /**
+     * @brief 获取已发布帧数
+     */
+    int get_frame_count() const { return frame_count_; }
+
+    /**
+     * @brief 获取帧宽度
+     */
+    int get_frame_width() const { return frame_width_; }
+
+    /**
+     * @brief 获取帧高度
+     */
+    int get_frame_height() const { return frame_height_; }
+
+    /**
+     * @brief 获取发布帧率
+     */
+    double get_fps() const { return fps_; }
 
 private:
     /**
@@ -129,14 +148,14 @@ private:
             }
         }
 
-        // 转换为ROS消息
+        // 转换为 ROS 消息
         auto msg = cv_bridge::CvImage(
             std_msgs::msg::Header(),
             "bgr8",
             frame
         ).toImageMsg();
 
-        // 设置时间戳和帧ID
+        // 设置时间戳和帧 ID
         msg->header.stamp = this->get_clock()->now();
         msg->header.frame_id = "camera_frame";
 
@@ -146,7 +165,7 @@ private:
         // 更新帧计数
         frame_count_++;
         if (frame_count_ % 100 == 0) {
-            RCLCPP_INFO(this->get_logger(), "已发布 %d 帧", frame_count_);
+            RCLCPP_INFO(this->get_logger(), "MockCamera 已发布 %d 帧", frame_count_);
         }
     }
 
@@ -173,7 +192,7 @@ private:
 int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<VideoPublisherNode>());
+    rclcpp::spin(std::make_shared<MockCameraNode>());
     rclcpp::shutdown();
     return 0;
 }

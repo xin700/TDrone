@@ -3,12 +3,15 @@
  * @brief 装甲板关键点检测器头文件
  * 
  * 使用OpenVINO加载YOLOX模型进行装甲板4角点检测
+ * 与 OrangeAim-Drone 保持一致，使用 BRpoints_nano 模型
+ * 
  * 输入：原始BGR图像（任意尺寸）
  * 输出：检测到的装甲板列表（ArmorBBoxes）
  * 
- * 模型特点：
+ * BRpoints_nano 模型特点：
  * - 输入尺寸：416x416
- * - 输出：每个检测框包含8个坐标值（4个角点的x,y）、objectness、颜色分类、类别分类
+ * - 输出维度：12 = 8(corners) + 1(objectness) + 2(colors) + 1(class)
+ * - 颜色分类：蓝(0)/红(1)
  * - 支持NMS去重和候选框合并
  */
 

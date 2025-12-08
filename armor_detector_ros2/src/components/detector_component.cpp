@@ -216,39 +216,22 @@ private:
 
         armor_pub_->publish(std::move(armor_array_msg));
 
-        // ==================== 绘制检测结果 ====================
+        // ==================== 绘制检测结果（交叉连接角点，根据颜色绘制） ====================
         for (const auto& det : detections) {
-            // 获取绘制颜色（根据装甲板颜色）
-            cv::Scalar draw_color = getDrawColor(det.color_id);
+            // 根据检测到的装甲板颜色选择绘制颜色
+            // color_id: 0=蓝色, 1=红色
+            cv::Scalar draw_color = (det.color_id == 0) ? 
+                cv::Scalar(255, 0, 0) :   // 蓝色装甲板 -> 蓝色线条 (BGR)
+                cv::Scalar(0, 0, 255);    // 红色装甲板 -> 红色线条 (BGR)
             
-            // 绘制四边形轮廓
-            cv::line(frame, det.corners[0], det.corners[1], draw_color, 2);
-            cv::line(frame, det.corners[1], det.corners[2], draw_color, 2);
-            cv::line(frame, det.corners[2], det.corners[3], draw_color, 2);
-            cv::line(frame, det.corners[3], det.corners[0], draw_color, 2);
+            // 交叉连接角点 (0-2, 1-3)
+            cv::line(frame, det.corners[0], det.corners[2], draw_color, 2);
+            cv::line(frame, det.corners[1], det.corners[3], draw_color, 2);
             
-            // 组合标签：颜色+类别，例如 "R-Hero", "B-Sentry"
-            std::string label = getColorName(det.color_id) + "-" + getTagName(det.tag_id);
-            
-            // 绘制标签背景框（提高可读性）
-            int baseline = 0;
-            cv::Size text_size = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.6, 2, &baseline);
-            cv::Point text_pos(det.corners[0].x, det.corners[0].y - 5);
-            cv::rectangle(frame, 
-                         cv::Point(text_pos.x - 2, text_pos.y - text_size.height - 2),
-                         cv::Point(text_pos.x + text_size.width + 2, text_pos.y + 2),
-                         cv::Scalar(0, 0, 0), -1);
-            
-            // 绘制文字标签
-            cv::putText(frame, label, text_pos, 
-                       cv::FONT_HERSHEY_SIMPLEX, 0.6, draw_color, 2);
-            
-            // 绘制置信度
-            char conf_text[16];
-            snprintf(conf_text, sizeof(conf_text), "%.0f%%", det.confidence * 100);
-            cv::putText(frame, conf_text, 
-                       cv::Point(det.corners[1].x, det.corners[1].y - 5),
-                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+            // 显示 tag_id 和名称，格式: "id:Name" 例如 "1:Hero"
+            std::string label = std::to_string(det.tag_id) + ":" + getTagName(det.tag_id);
+            cv::putText(frame, label, det.corners[0],
+                       cv::FONT_HERSHEY_SIMPLEX, 0.7, draw_color, 2);
         }
 
         char info_text[128];

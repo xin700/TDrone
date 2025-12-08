@@ -1,19 +1,18 @@
 """
-装甲板检测系统ROS2启动文件
+完整检测+解算流水线 ROS2 启动文件
 
-启动三个节点：
+启动节点：
 1. video_publisher_node: 从视频文件读取帧并发布
-2. detector_node: 进行装甲板关键点检测和数字分类
-3. visualizer_node: 可视化检测结果并写入视频文件
+2. mock_imu_node: 模拟 IMU 数据
+3. detector_node: 进行装甲板关键点检测和数字分类
+4. solver_node: PnP 位姿解算
+5. visualizer_node: 可视化检测和解算结果并写入视频文件
 
 使用方法：
-    ros2 launch armor_detector_ros2 detector_launch.py
+    ros2 launch armor_detector_ros2 full_pipeline_launch.py
     
     # 使用自定义视频文件：
-    ros2 launch armor_detector_ros2 detector_launch.py video_path:=/path/to/video.mp4
-    
-    # 使用自定义输出路径：
-    ros2 launch armor_detector_ros2 detector_launch.py output_path:=/path/to/output.mp4
+    ros2 launch armor_detector_ros2 full_pipeline_launch.py video_path:=/path/to/video.mp4
 """
 
 import os
@@ -28,14 +27,12 @@ def generate_launch_description():
     # 获取包路径
     pkg_share = get_package_share_directory('armor_detector_ros2')
     
-    # 默认配置文件路径
-    default_config = os.path.join(pkg_share, 'config', 'detector_config.yaml')
-    
     # 默认模型路径 (使用 Docker 容器内路径 /ros2_ws)
     default_armor_model = '/ros2_ws/models/BRpoints_nano.xml'
     default_classifier_model = '/ros2_ws/models/classifier.xml'
     default_video = '/ros2_ws/videos/sample.avi'
-    default_output = '/ros2_ws/output/detection_result.mp4'
+    default_output = '/ros2_ws/output/full_pipeline_result.mp4'
+    default_camera_config = os.path.join(pkg_share, 'config', 'camera_intrinsics.yaml')
     
     # ==================== 声明启动参数 ====================
     video_path_arg = DeclareLaunchArgument(
@@ -62,6 +59,24 @@ def generate_launch_description():
         description='是否循环播放视频'
     )
     
+    show_pose_arg = DeclareLaunchArgument(
+        'show_pose_info',
+        default_value='true',
+        description='是否显示位姿信息'
+    )
+    
+    show_ekf_arg = DeclareLaunchArgument(
+        'show_ekf_info',
+        default_value='false',
+        description='是否显示 EKF 跟踪信息'
+    )
+    
+    show_trajectory_arg = DeclareLaunchArgument(
+        'show_trajectory',
+        default_value='false',
+        description='是否显示目标轨迹'
+    )
+    
     # ==================== 定义节点 ====================
     # 视频发布节点
     video_publisher_node = Node(
@@ -73,6 +88,17 @@ def generate_launch_description():
             'video_path': LaunchConfiguration('video_path'),
             'fps': LaunchConfiguration('fps'),
             'loop': LaunchConfiguration('loop'),
+        }]
+    )
+    
+    # 模拟 IMU 节点
+    mock_imu_node = Node(
+        package='armor_detector_ros2',
+        executable='mock_imu_node',
+        name='mock_imu_node',
+        output='screen',
+        parameters=[{
+            'publish_rate': 200.0,
         }]
     )
     
@@ -89,6 +115,26 @@ def generate_launch_description():
         }]
     )
     
+    # 位姿解算节点
+    solver_node = Node(
+        package='armor_detector_ros2',
+        executable='solver_node',
+        name='solver_node',
+        output='screen',
+        parameters=[{
+            # 默认相机内参（1280x720）
+            'fx': 1280.0,
+            'fy': 1280.0,
+            'cx': 640.0,
+            'cy': 360.0,
+            'k1': 0.0,
+            'k2': 0.0,
+            'p1': 0.0,
+            'p2': 0.0,
+            'k3': 0.0,
+        }]
+    )
+    
     # 可视化节点
     visualizer_node = Node(
         package='armor_detector_ros2',
@@ -98,6 +144,10 @@ def generate_launch_description():
         parameters=[{
             'output_video_path': LaunchConfiguration('output_path'),
             'fps': LaunchConfiguration('fps'),
+            'show_pose_info': LaunchConfiguration('show_pose_info'),
+            'show_ekf_info': LaunchConfiguration('show_ekf_info'),
+            'show_trajectory': LaunchConfiguration('show_trajectory'),
+            'trajectory_length': 50,
         }]
     )
     
@@ -108,8 +158,13 @@ def generate_launch_description():
         output_path_arg,
         fps_arg,
         loop_arg,
+        show_pose_arg,
+        show_ekf_arg,
+        show_trajectory_arg,
         # 节点
         video_publisher_node,
+        mock_imu_node,
         detector_node,
+        solver_node,
         visualizer_node,
     ])
