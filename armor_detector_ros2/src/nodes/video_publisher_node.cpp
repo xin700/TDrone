@@ -101,6 +101,9 @@ public:
         );
 
         RCLCPP_INFO(this->get_logger(), "视频发布节点已启动");
+        
+        // 记录起始时间（用于计算视频时间戳）
+        start_time_ = this->get_clock()->now();
     }
 
 private:
@@ -119,6 +122,7 @@ private:
             if (loop_) {
                 // 循环播放：重置到第一帧
                 cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
+                frame_count_ = 0;  // 重置帧计数
                 RCLCPP_INFO(this->get_logger(), "视频播放完毕，重新开始");
                 return;
             } else {
@@ -136,8 +140,10 @@ private:
             frame
         ).toImageMsg();
 
-        // 设置时间戳和帧ID
-        msg->header.stamp = this->get_clock()->now();
+        // 【关键修改】使用帧序号计算时间戳，而不是实际时钟
+        // 这样即使处理速度慢，IMU也能正确匹配到对应帧
+        double video_time = frame_count_ / fps_;
+        msg->header.stamp = start_time_ + rclcpp::Duration::from_seconds(video_time);
         msg->header.frame_id = "camera_frame";
 
         // 发布
@@ -165,6 +171,7 @@ private:
     int frame_width_;         ///< 帧宽度
     int frame_height_;        ///< 帧高度
     int frame_count_ = 0;     ///< 已发布帧数
+    rclcpp::Time start_time_; ///< 视频起始时间（用于计算时间戳）
 };
 
 /**

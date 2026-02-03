@@ -12,21 +12,39 @@
 # | fx  0  cx |
 # | 0  fy  cy |
 # | 0   0   1 |
+# camera_matrix: !!opencv-matrix
+#   rows: 3
+#   cols: 3
+#   dt: d
+#   data: [1289.0, 0.0, 638.8,
+#          0.0, 561.0, 517.0,
+#          0.0, 0.0, 1.0]
+# camera_matrix: !!opencv-matrix
+#   rows: 3
+#   cols: 3
+#   dt: d
+#   data: [1280.0000, 0.0, 640.0000,
+#          0.0, 1024.0000, 512.0000,
+#          0.0, 0.0, 1.0]
 camera_matrix: !!opencv-matrix
   rows: 3
   cols: 3
   dt: d
-  data: [1280.0, 0.0, 640.0,
-         0.0, 1280.0, 360.0,
-         0.0, 0.0, 1.0]
-
+  data: [ 3083.8105952278529, 0.0, 632.75929313977156, 
+          0.0, 3087.5127345486885, 506.7684422240867, 
+          0.0, 0.0, 1.0]
 # 畸变系数 (k1, k2, p1, p2, k3)
 distortion_coefficients: !!opencv-matrix
   rows: 5
   cols: 1
   dt: d
-  data: [0.0, 0.0, 0.0, 0.0, 0.0]
+  data: [-0.029972610213195684, 0.63682485437133696, -0.0018553896247422729, 0.0016855435129403762, -3.225176357376645]
+# distortion_coefficients: !!opencv-matrix
+#   rows: 5
+#   cols: 1
+#   dt: d
+#   data: [-0.39670626, 0.06691483, -0.01000000, -0.00148951, -0.00329895]
 
 # 图像尺寸
 image_width: 1280
-image_height: 720
+image_height: 1024

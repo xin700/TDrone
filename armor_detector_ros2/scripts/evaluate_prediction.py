@@ -62,7 +62,7 @@ class PredictionEvaluator(Node):
         super().__init__('prediction_evaluator')
         
         # 参数
-        self.declare_parameter('output_dir', '/ros2_ws/output/evaluation')
+        self.declare_parameter('output_dir', '~/droneAim/TDrone/output/evaluation')
         self.declare_parameter('fx', 1280.0)
         self.declare_parameter('fy', 1280.0)
         self.declare_parameter('cx', 640.0)

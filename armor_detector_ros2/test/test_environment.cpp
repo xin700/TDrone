@@ -124,7 +124,7 @@ TEST_F(EnvironmentTest, OpenVINOModelCompilation) {
     
     // Try to load an existing model file from the models directory
     std::vector<std::string> model_paths = {
-        "/ros2_ws/src/armor_detector_ros2/models/BRpoints_nano.xml",
+        "~/droneAim/TDrone/src/armor_detector_ros2/models/BRpoints_nano.xml",
         "src/armor_detector_ros2/models/BRpoints_nano.xml",
         "../models/BRpoints_nano.xml"
     };
@@ -159,8 +159,8 @@ TEST_F(EnvironmentTest, OpenVINOModelCompilation) {
 TEST_F(EnvironmentTest, OpenCVVideoReading) {
     // Test with a video file if available
     std::vector<std::string> test_paths = {
-        "/ros2_ws/videos/1.mp4",
-        "/ros2_ws/videos/video.avi",
+        "~/droneAim/TDrone/videos/1.mp4",
+        "~/droneAim/TDrone/videos/video.avi",
         "../videos/1.mp4",
         "videos/1.mp4"
     };
@@ -224,7 +224,7 @@ TEST_F(EnvironmentTest, OpenCVBasicOperations) {
 TEST_F(EnvironmentTest, OpenCVVideoWriting) {
     // Output path for test video
     std::vector<std::string> output_paths = {
-        "/ros2_ws/output/test_output.avi",
+        "~/droneAim/TDrone/output/test_output.avi",
         "./output/test_output.avi",
         "/tmp/test_output.avi"
     };

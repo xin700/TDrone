@@ -122,14 +122,14 @@ fi
 echo ""
 echo "5. Checking workspace..."
 
-if [ -d "/ros2_ws/src" ]; then
+if [ -d "~/droneAim/TDrone/src" ]; then
     pass "Workspace source directory exists"
 else
     warn "Workspace source directory not found"
 fi
 
-if [ -d "/ros2_ws/videos" ]; then
-    VIDEO_COUNT=$(ls /ros2_ws/videos/*.mp4 /ros2_ws/videos/*.avi 2>/dev/null | wc -l)
+if [ -d "~/droneAim/TDrone/videos" ]; then
+    VIDEO_COUNT=$(ls ~/droneAim/TDrone/videos/*.mp4 ~/droneAim/TDrone/videos/*.avi 2>/dev/null | wc -l)
     pass "Videos directory exists ($VIDEO_COUNT video files)"
 else
     warn "Videos directory not found"

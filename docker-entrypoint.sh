@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+# Add root to video and kvm groups for GPU access
+usermod -a -G video,kvm root 2>/dev/null || true
+
+# Create symbolic links for compatibility with old path
+# Both /home/user and /root are needed since different contexts use different users
+mkdir -p /home/user/droneAim /root/droneAim
+ln -sf /ros2_ws /home/user/droneAim/TDrone 2>/dev/null || true
+ln -sf /ros2_ws /root/droneAim/TDrone 2>/dev/null || true
+
 # Source ROS2 setup
 source /opt/ros/${ROS_DISTRO}/setup.bash
 

@@ -8,6 +8,10 @@ build/
 install/
 log/
 
+ceres-solver/
+neo/
+RobotDetectionModel-main/
+Sophus/
 # CMake 产物
 CMakeFiles/
 CMakeCache.txt
@@ -87,3 +91,57 @@ COLCON_IGNORE
 
 # Windows Zone.Identifier 元数据文件
 *:Zone.Identifier
+armor_detector_ros2/verify/verify_output.mp4
+RobotDetectionModel-main/output.avi
+videos/d.avi
+videos/e.avi
+videos/fuck.avi
+videos/g.avi
+videos/k.avi
+videos/k1.avi
+videos/outpost_sample.mp4
+videos/real.avi
+videos/real.mp4
+videos/real2.avi
+videos/t.avi
+videos/test.avi
+AUTO_CALIBRATION_GUIDE.md
+CALIBRATION_GUIDE.md
+analyze_y_error.py
+analyze_tangential_distortion.py
+optimize_camera_calibration.py
+optimize_camera_pnp.py
+RobotDetectionModel-main/README_COMPARE.md
+RobotDetectionModel-main/README_VISUALIZER.md
+armor_detector_ros2/docs/armor_height_classification.md
+armor_detector_ros2/docs/CONFIG_QUICK_START.md
+armor_detector_ros2/docs/outpost_predictor_design.md
+armor_detector_ros2/docs/outpost_predictor_v2_design.md
+armor_detector_ros2/docs/PARAMETER_TUNING.md
+
+*.tar.gz
+*.Sophus
+*.bak2
+fix_docker_install.sh
+focal_length_analysis.png
+INSTALL_DOCKER.md
+install_docker.sh
+kernel.errors.txt
+ros2_ws
+camera_calibration.py
+camera_intrinsics*
+
+*Zone.Identifier
+armor_detector_ros2/docs
+Dockerfile.bak.sophus
+
+dick.avi
+video.avi
+video2.avi
+fuck.txt
+dick.txt
+*.mp4
+*.avi
+
+# armor_detector_ros2/scripts/calibrate_camera.py
+armor_detector_ros2/scripts/evaluate_prediction.py

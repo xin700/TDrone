@@ -415,8 +415,26 @@ private:
             cv::putText(frame, info2,
                        cv::Point(frame.cols - panel_width, y_offset + line_height),
                        cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(180, 180, 180), 1);
-
             y_offset += line_height * 2;
+            
+            // 位移向量（机架坐标系）
+            char pos_body[128];
+            snprintf(pos_body, sizeof(pos_body), "  Pos: [%.3f,%.3f,%.3f]", 
+                    pose.position.x, pose.position.y, pose.position.z);
+            cv::putText(frame, pos_body,
+                       cv::Point(frame.cols - panel_width, y_offset),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.38, cv::Scalar(100, 200, 255), 1);
+            y_offset += line_height;
+            
+            // 位移向量（相机坐标系）
+            char pos_cam[128];
+            snprintf(pos_cam, sizeof(pos_cam), "  PosCam:[%.3f,%.3f,%.3f]", 
+                    pose.position_cam.x, pose.position_cam.y, pose.position_cam.z);
+            cv::putText(frame, pos_cam,
+                       cv::Point(frame.cols - panel_width, y_offset),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.38, cv::Scalar(150, 150, 150), 1);
+            y_offset += line_height;
+            
         }
 
         // 如果没有有效的位姿

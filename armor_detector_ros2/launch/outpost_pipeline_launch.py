@@ -23,6 +23,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition, UnlessCondition
 from launch_ros.actions import Node
 
 
@@ -30,11 +31,11 @@ def generate_launch_description():
     # 获取包路径
     pkg_share = get_package_share_directory('armor_detector_ros2')
     
-    # 默认模型路径 (使用 Docker 容器内路径 /ros2_ws)
-    default_armor_model = '/ros2_ws/models/BRpoints_nano.xml'
-    default_classifier_model = '/ros2_ws/models/classifier.xml'
-    default_video = '/ros2_ws/videos/outpost_sample.mp4'
-    default_output = '/ros2_ws/output/outpost_prediction_result.mp4'
+    # 默认模型路径 (使用 Docker 容器内路径 ~/droneAim/TDrone)
+    default_armor_model = '/home/user/droneAim/TDrone/models/BRpoints_nano.xml'
+    default_classifier_model = '/home/user/droneAim/TDrone/models/classifier.xml'
+    default_video = '/home/user/droneAim/TDrone/videos/outpost_sample.mp4'
+    default_output = '/home/user/droneAim/TDrone/output/outpost_prediction_result.mp4'
     
     # ==================== 声明启动参数 ====================
     video_path_arg = DeclareLaunchArgument(
@@ -79,6 +80,19 @@ def generate_launch_description():
         description='是否显示预测轨迹'
     )
     
+    # IMU 相关参数
+    use_imu_file_arg = DeclareLaunchArgument(
+        'use_imu_file',
+        default_value='false',
+        description='是否使用 IMU 文件（而非模拟 IMU）'
+    )
+    
+    imu_file_path_arg = DeclareLaunchArgument(
+        'imu_file_path',
+        default_value='',
+        description='IMU 数据文件路径'
+    )
+    
     # ==================== 定义节点 ====================
     # 视频发布节点
     video_publisher_node = Node(
@@ -93,7 +107,7 @@ def generate_launch_description():
         }]
     )
     
-    # 模拟 IMU 节点
+    # 模拟 IMU 节点（当不使用 IMU 文件时）
     mock_imu_node = Node(
         package='armor_detector_ros2',
         executable='mock_imu_node',
@@ -101,19 +115,38 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'publish_rate': 200.0,
-        }]
+        }],
+        condition=UnlessCondition(LaunchConfiguration('use_imu_file'))
+    )
+    
+    # IMU 文件播放节点（当使用 IMU 文件时）
+    imu_file_publisher_node = Node(
+        package='armor_detector_ros2',
+        executable='imu_file_publisher_node',
+        name='imu_file_publisher_node',
+        output='screen',
+        parameters=[{
+            'imu_file_path': LaunchConfiguration('imu_file_path'),
+            'time_offset': 0.0,
+            'publish_rate': 0.0,
+            'interpolate': True,
+            'loop': LaunchConfiguration('loop'),
+        }],
+        condition=IfCondition(LaunchConfiguration('use_imu_file'))
     )
     
     # 检测器节点
-    detector_node = Node(
+    detector_opensource_node = Node(
         package='armor_detector_ros2',
-        executable='detector_node',
-        name='detector_node',
+        executable='detector_opensource_node',
+        name='detector_opensource_node',
         output='screen',
         parameters=[{
-            'armor_model_path': default_armor_model,
-            'classifier_model_path': default_classifier_model,
-            'color_flag': -1,  # 不过滤颜色
+            'model_path': '/home/user/droneAim/TDrone/armor_detector_ros2/models/0526.onnx',
+            'color_flag': 1,
+            'conf_threshold': 0.8,
+            'nms_threshold': 0.6,
+            'use_pixel_color_correction': True,
         }]
     )
     
@@ -126,7 +159,7 @@ def generate_launch_description():
         parameters=[{
             # 默认相机内参（1280x1024）
             'fx': 1280.0,
-            'fy': 1280.0,
+            'fy': 1024.0,
             'cx': 640.0,
             'cy': 512.0,  # 1024/2 = 512
             'k1': 0.0,
@@ -182,10 +215,13 @@ def generate_launch_description():
         loop_arg,
         show_outpost_arg,
         show_trajectory_arg,
+        use_imu_file_arg,
+        imu_file_path_arg,
         # 节点
         video_publisher_node,
         mock_imu_node,
-        detector_node,
+        imu_file_publisher_node,
+        detector_opensource_node,
         solver_node,
         outpost_predictor_node,
         visualizer_node,

@@ -31,11 +31,11 @@ def generate_launch_description():
     # 默认配置文件路径
     default_config = os.path.join(pkg_share, 'config', 'detector_config.yaml')
     
-    # 默认模型路径 (使用 Docker 容器内路径 /ros2_ws)
-    default_armor_model = '/ros2_ws/models/BRpoints_nano.xml'
-    default_classifier_model = '/ros2_ws/models/classifier.xml'
-    default_video = '/ros2_ws/videos/sample.avi'
-    default_output = '/ros2_ws/output/detection_result.mp4'
+    # 默认模型路径 (使用 Docker 容器内路径 ~/droneAim/TDrone)
+    default_armor_model = '/home/user/droneAim/TDrone/models/BRpoints_nano.xml'
+    default_classifier_model = '/home/user/droneAim/TDrone/models/classifier.xml'
+    default_video = '/home/user/droneAim/TDrone/videos/sample.avi'
+    default_output = '/home/user/droneAim/TDrone/output/detection_result.mp4'
     
     # ==================== 声明启动参数 ====================
     video_path_arg = DeclareLaunchArgument(

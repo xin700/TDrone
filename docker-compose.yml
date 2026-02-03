@@ -13,6 +13,15 @@ services:
     # Privileged mode for hardware access (cameras, serial ports, CAN)
     privileged: true
     
+    # Add video and render groups for GPU access
+    group_add:
+      - "44"   # video group
+      - "109"  # render group
+    
+    # IMPORTANT: Entrypoint to create symlinks and setup environment
+    entrypoint: ["/docker-entrypoint.sh"]
+    command: ["sleep", "infinity"]
+    
     # Environment variables
     environment:
       - ROS_DOMAIN_ID=0
@@ -23,6 +32,9 @@ services:
       - Python3_EXECUTABLE=/usr/bin/python3
       # Prevent CMake from finding host's Anaconda
       - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      # 大恒相机 GenTL 路径
+      - GENICAM_GENTL64_PATH=/opt/Galaxy_camera/lib/x86_64
+      - LD_LIBRARY_PATH=/opt/Galaxy_camera/lib/x86_64:/usr/lib:/usr/local/lib
     
     # Volume mounts - 挂载当前目录到 /ros2_ws
     volumes:
@@ -32,6 +44,13 @@ services:
       - ros2_build_cache:/ros2_ws/build
       - ros2_install_cache:/ros2_ws/install
       - ros2_log_cache:/ros2_ws/log
+      # 大恒相机 SDK
+      - /home/hustlyrm/drivers/Galaxy_Linux-x86_Gige-U3_32bits-64bits_1.5.2303.9221/Galaxy_camera:/opt/Galaxy_camera:ro
+      - /usr/lib/libgxiapi.so:/usr/lib/libgxiapi.so:ro
+      # Ceres Solver 本地缓存
+      - /home/hustlyrm/repos/ceres-solver-2.2.0/include/ceres:/usr/local/include/ceres:ro
+      - /home/hustlyrm/repos/ceres-solver-2.2.0/build/lib/libceres.a:/usr/local/lib/libceres.a:ro
+      - /dev/bus/usb:/dev/bus/usb:rw
     
     # Device access
     devices:

@@ -42,9 +42,9 @@ protected:
      */
     std::string find_test_video() {
         std::vector<std::string> test_paths = {
-            "/ros2_ws/videos/1.mp4",
-            "/ros2_ws/videos/video.avi",
-            "/ros2_ws/videos/3.avi",
+            "~/droneAim/TDrone/videos/1.mp4",
+            "~/droneAim/TDrone/videos/video.avi",
+            "~/droneAim/TDrone/videos/3.avi",
             "../videos/1.mp4",
             "videos/1.mp4"
         };

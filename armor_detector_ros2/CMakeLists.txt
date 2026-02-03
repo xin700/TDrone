@@ -17,10 +17,14 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(message_filters REQUIRED)
+find_package(std_srvs REQUIRED)
 
 # OpenCV依赖 - 只使用需要的组件
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs videoio dnn highgui)
@@ -45,6 +49,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Point2f.msg"
   "msg/Command.msg"
   "msg/OutpostState.msg"
+  "msg/OutpostStateV2.msg"
+  "msg/OutpostAimResult.msg"
+  "msg/GimbalCommand.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 
@@ -97,6 +104,27 @@ ament_target_dependencies(detector_node
 # 链接自定义消息
 target_link_libraries(detector_node ${cpp_typesupport_target})
 
+# ==================== 开源模型检测器节点 ====================
+# 功能: 使用0526.onnx开源模型进行装甲板检测
+add_executable(detector_opensource_node
+  src/nodes/detector_opensource_node.cpp
+  src/core/OpenSourceInferer.cpp
+)
+target_link_libraries(detector_opensource_node
+  ${OpenCV_LIBS}
+  openvino::runtime
+  CURL::libcurl
+  TIFF::TIFF
+)
+ament_target_dependencies(detector_opensource_node
+  rclcpp
+  sensor_msgs
+  cv_bridge
+  image_transport
+)
+# 链接自定义消息
+target_link_libraries(detector_opensource_node ${cpp_typesupport_target})
+
 # ==================== 位姿解算节点 ====================
 # 功能: 订阅检测结果和 IMU 数据，进行 PnP 位姿解算，发布位姿结果
 add_executable(solver_node
@@ -132,6 +160,80 @@ ament_target_dependencies(visualizer_node
 )
 # 链接自定义消息
 target_link_libraries(visualizer_node ${cpp_typesupport_target})
+
+# ==================== V2可视化节点（多假设追踪）====================
+# 功能: 专门用于前哨站V2预测的可视化，显示收敛状态、三装甲板位置、弹道预测
+add_executable(visualizer_node_v2
+  src/visualize/visualizer_node_v2.cpp
+)
+target_link_libraries(visualizer_node_v2
+  ${OpenCV_LIBS}
+  CURL::libcurl
+  TIFF::TIFF
+)
+ament_target_dependencies(visualizer_node_v2
+  rclcpp
+  sensor_msgs
+  cv_bridge
+)
+# 链接自定义消息
+target_link_libraries(visualizer_node_v2 ${cpp_typesupport_target})
+
+# ==================== V3可视化节点（时间同步 + 极坐标观测）====================
+# 功能: 专门用于前哨站V3预测的可视化，解决检测框滞后问题
+add_executable(visualizer_node_v3
+  src/visualize/visualizer_node_v3.cpp
+)
+target_link_libraries(visualizer_node_v3
+  ${OpenCV_LIBS}
+)
+ament_target_dependencies(visualizer_node_v3
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  std_msgs
+  cv_bridge
+  message_filters
+)
+# 链接自定义消息
+target_link_libraries(visualizer_node_v3 ${cpp_typesupport_target})
+
+# ==================== V4可视化节点（θ观测模型）====================
+# 功能: 专门用于前哨站V4预测的可视化，显示EKF状态、预瞄点、开火条件
+add_executable(visualizer_node_v4
+  src/visualize/visualizer_node_v4.cpp
+)
+target_link_libraries(visualizer_node_v4
+  ${OpenCV_LIBS}
+)
+ament_target_dependencies(visualizer_node_v4
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  std_msgs
+  cv_bridge
+  message_filters
+)
+# 链接自定义消息
+target_link_libraries(visualizer_node_v4 ${cpp_typesupport_target})
+
+# ==================== Solver 调试可视化节点 ====================
+# 功能: 专门用于调试 solver_node，验证 PnP 解算结果
+add_executable(solver_visualizer_node
+  src/visualize/solver_visualizer_node.cpp
+)
+target_link_libraries(solver_visualizer_node
+  ${OpenCV_LIBS}
+)
+ament_target_dependencies(solver_visualizer_node
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  cv_bridge
+  message_filters
+)
+# 链接自定义消息
+target_link_libraries(solver_visualizer_node ${cpp_typesupport_target})
 
 # ==================== 组件库（零拷贝版本）====================
 # 将所有组件编译为一个共享库，支持进程内零拷贝通信
@@ -217,6 +319,16 @@ ament_target_dependencies(mock_imu_node
   geometry_msgs
 )
 
+# 功能: 从文件读取 IMU 数据，支持与视频同步播放
+add_executable(imu_file_publisher_node
+  src/mock/imu_file_publisher_node.cpp
+)
+ament_target_dependencies(imu_file_publisher_node
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+)
+
 # 功能: 模拟 CBoard，发布弹速，接收控制指令
 add_executable(mock_cboard_node
   src/mock/mock_cboard_node.cpp
@@ -224,6 +336,43 @@ add_executable(mock_cboard_node
 ament_target_dependencies(mock_cboard_node
   rclcpp
   std_msgs
+)
+
+# ==================== 真实硬件数据发布节点 ====================
+# 功能: 实时采集大恒相机视频流和串口IMU数据，发布到ROS2话题
+# 话题: /camera/image_raw, /imu/quaternion, /bullet_speed, /aim_request
+# 服务: /pipeline_control (控制检测流水线启停)
+
+# 查找Boost库（用于串口通信）
+find_package(Boost REQUIRED COMPONENTS system)
+
+# 大恒相机SDK路径
+set(GALAXY_SDK_PATH "/usr/lib")
+set(GALAXY_SDK_INCLUDE "/usr/include")
+
+add_executable(real_hardware_publisher_node
+  src/nodes/real_hardware_publisher_node.cpp
+  src/driver/DaHengCamera.cpp
+)
+target_include_directories(real_hardware_publisher_node PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${GALAXY_SDK_INCLUDE}
+)
+target_link_libraries(real_hardware_publisher_node
+  ${OpenCV_LIBS}
+  Boost::system
+  CURL::libcurl
+  TIFF::TIFF
+  gxiapi
+  pthread
+)
+ament_target_dependencies(real_hardware_publisher_node
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  std_msgs
+  cv_bridge
+  std_srvs
 )
 
 # ==================== 前哨站预测节点 ====================
@@ -244,17 +393,128 @@ ament_target_dependencies(outpost_predictor_node
 # 链接自定义消息
 target_link_libraries(outpost_predictor_node ${cpp_typesupport_target})
 
+# ==================== 前哨站预测节点 V2 ====================
+# 功能: 新版前哨站预测器，基于精确物理模型 (5维状态向量)
+# Features: 3装甲板高度建模、可打窗口计算、延迟补偿
+add_executable(outpost_predictor_node_v2
+  src/nodes/outpost_predictor_node_v2.cpp
+  src/core/outpost_predictor_v2.cpp
+  src/core/extended_kalman_filter.cpp
+)
+target_include_directories(outpost_predictor_node_v2 PRIVATE
+  ${EIGEN3_INCLUDE_DIRS}
+)
+target_link_libraries(outpost_predictor_node_v2
+  ${cpp_typesupport_target}
+)
+ament_target_dependencies(outpost_predictor_node_v2
+  rclcpp
+  geometry_msgs
+  std_msgs
+  visualization_msgs
+  tf2
+)
+
+# ==================== 前哨站预测节点 V3 ====================
+# 功能: V3预测器，使用极坐标观测模型，改进的多假设跟踪
+# Features: 极坐标观测、装甲板切换检测、direct/indirect瞄准
+add_executable(outpost_predictor_node_v3
+  src/nodes/outpost_predictor_node_v3.cpp
+  src/core/outpost_predictor_v3.cpp
+)
+target_include_directories(outpost_predictor_node_v3 PRIVATE
+  ${EIGEN3_INCLUDE_DIRS}
+)
+target_link_libraries(outpost_predictor_node_v3
+  ${cpp_typesupport_target}
+)
+ament_target_dependencies(outpost_predictor_node_v3
+  rclcpp
+  geometry_msgs
+  std_msgs
+  visualization_msgs
+  tf2
+)
+
+# ==================== 前哨站预测节点 V4 ====================
+# 功能: V4预测器，基于长宽比的相位观测 + EKF状态估计
+# Features: 
+#   - 基于长宽比的θ观测
+#   - 分阶段初始化 (方向→高度→θ→EKF)
+#   - 5维状态空间 [ang, ω, x_c, y_c, z_c]
+#   - 高度状态机与EKF交叉验证
+add_executable(outpost_predictor_node_v4
+  src/nodes/outpost_predictor_node_v4.cpp
+  src/core/outpost_predictor_v4.cpp
+)
+target_include_directories(outpost_predictor_node_v4 PRIVATE
+  ${EIGEN3_INCLUDE_DIRS}
+)
+target_link_libraries(outpost_predictor_node_v4
+  ${cpp_typesupport_target}
+)
+ament_target_dependencies(outpost_predictor_node_v4
+  rclcpp
+  geometry_msgs
+  std_msgs
+  visualization_msgs
+)
+
+# ==================== 瞄准控制节点 ====================
+# 功能: 接收预测结果，计算云台目标角度，实现追踪/切换状态机
+add_executable(aiming_node
+  src/nodes/aiming_node.cpp
+)
+target_include_directories(aiming_node PRIVATE
+  ${EIGEN3_INCLUDE_DIRS}
+)
+target_link_libraries(aiming_node
+  ${cpp_typesupport_target}
+)
+ament_target_dependencies(aiming_node
+  rclcpp
+  geometry_msgs
+  std_msgs
+  std_srvs
+)
+
+# ==================== 云台控制节点 ====================
+# 功能: 接收瞄准指令，通过串口发送到云台控制板
+add_executable(gimbal_control_node
+  src/nodes/gimbal_control_node.cpp
+)
+target_link_libraries(gimbal_control_node
+  ${cpp_typesupport_target}
+  Boost::system
+)
+ament_target_dependencies(gimbal_control_node
+  rclcpp
+  std_srvs
+)
+
 # ==================== 安装目标 ====================
 # 安装可执行文件
 install(TARGETS
   video_publisher_node
   detector_node
+  detector_opensource_node
   solver_node
   visualizer_node
+  visualizer_node_v2
+  visualizer_node_v3
+  visualizer_node_v4
+  solver_visualizer_node
   mock_camera_node
   mock_imu_node
+  imu_file_publisher_node
   mock_cboard_node
+  real_hardware_publisher_node
   outpost_predictor_node
+  outpost_predictor_node_v2
+  outpost_predictor_node_v3
+  outpost_predictor_node_v4
+  aiming_node
+  gimbal_control_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -338,6 +598,19 @@ target_include_directories(outpost_estimator PUBLIC
   ${EIGEN3_INCLUDE_DIRS}
 )
 target_link_libraries(outpost_estimator
+  extended_kalman_filter
+)
+
+# ==================== OutpostPredictorV2 库 ====================
+# 功能: 新版前哨站预测器，基于精确物理模型
+add_library(outpost_predictor_v2 STATIC
+  src/core/outpost_predictor_v2.cpp
+)
+target_include_directories(outpost_predictor_v2 PUBLIC
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+)
+target_link_libraries(outpost_predictor_v2
   extended_kalman_filter
 )
 

@@ -226,12 +226,14 @@ namespace DETECTOR
             if (box_prob >= prob_threshold)
             {
                 // 检查坐标有效性（必须在合理范围内）
-                // 模型输出坐标应该在 0~INPUT_W/INPUT_H 范围内
+                // 允许少量边界外溢（模型输出可能略微超出）
                 bool valid_coords = true;
                 float coords[] = {x_1, y_1, x_2, y_2, x_3, y_3, x_4, y_4};
                 for (int k = 0; k < 8; k++) {
+                    float limit = (k % 2 == 0) ? INPUT_W : INPUT_H;
+                    // 允许±50像素的边界外溢
                     if (std::isnan(coords[k]) || std::isinf(coords[k]) ||
-                        coords[k] < -100 || coords[k] > INPUT_W + 100) {
+                        coords[k] < -50 || coords[k] > limit + 50) {
                         valid_coords = false;
                         break;
                     }
@@ -429,7 +431,7 @@ namespace DETECTOR
         // 转换为float并分离通道
         cv::Mat pre;
         cv::Mat pre_split[3];
-        pre_img.convertTo(pre, CV_32F);
+        pre_img.convertTo(pre, CV_32F);  // 不归一化，保持[0,255]
         cv::split(pre, pre_split);
 
         // 填充输入张量（CHW格式）
@@ -459,15 +461,19 @@ namespace DETECTOR
             // 当有多个合并的候选框时，对角点进行平均
             if ((*bbox).points.size() >= 8) {
                 auto N = (*bbox).points.size();
-                cv::Point2f pts_final[4];
+                cv::Point2f pts_final[4] = {
+                    cv::Point2f(0.0f, 0.0f), cv::Point2f(0.0f, 0.0f),
+                    cv::Point2f(0.0f, 0.0f), cv::Point2f(0.0f, 0.0f)
+                };
                 
                 for (size_t i = 0; i < N; i++) {
                     pts_final[i % 4] += (*bbox).points[i];
                 }
 
+                float count_per_corner = static_cast<float>(N) / 4.0f;
                 for (int i = 0; i < 4; i++) {
-                    pts_final[i].x = pts_final[i].x / (N / 4);
-                    pts_final[i].y = pts_final[i].y / (N / 4);
+                    pts_final[i].x = pts_final[i].x / count_per_corner;
+                    pts_final[i].y = pts_final[i].y / count_per_corner;
                 }
                 
                 (*bbox).corners[0] = pts_final[0];

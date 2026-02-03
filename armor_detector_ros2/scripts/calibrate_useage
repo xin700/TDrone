@@ -1,0 +1,2 @@
+python3 calibrate_camera.py --auto --interval 3 --count 25
+python3 calibrate_camera.py --images './calib_images/*.jpg'

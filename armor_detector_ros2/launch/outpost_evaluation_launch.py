@@ -21,8 +21,8 @@ def generate_launch_description():
     pkg_share = get_package_share_directory('armor_detector_ros2')
     
     # 默认路径
-    default_video = '/ros2_ws/videos/3.avi'
-    default_output = '/ros2_ws/output/evaluation'
+    default_video = '/home/user/droneAim/TDrone/videos/3.avi'
+    default_output = '/home/user/droneAim/TDrone/output/evaluation'
     
     # 启动参数
     video_path_arg = DeclareLaunchArgument(

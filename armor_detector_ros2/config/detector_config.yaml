@@ -4,7 +4,7 @@
 # 说明：
 #   - 此配置文件包含所有节点的参数设置
 #   - 修改后需要重新启动节点才能生效
-#   - 路径使用 Docker 容器内路径 /ros2_ws
+#   - 路径使用 Docker 容器内路径 ~/droneAim/TDrone
 # ==============================================================================
 
 # ==============================================================================
@@ -13,8 +13,8 @@
 video_publisher_node:
   ros__parameters:
     # 视频文件路径（支持mp4, avi等OpenCV支持的格式）
-    # 将视频放在 /ros2_ws/videos 目录下
-    video_path: "/ros2_ws/videos/sample.avi"
+    # 将视频放在 ~/droneAim/TDrone/videos 目录下
+    video_path: "~/droneAim/TDrone/videos/sample.avi"
     
     # 发布帧率（FPS）
     # 设置为-1时使用视频原始帧率
@@ -34,13 +34,13 @@ detector_node:
     # 装甲板检测模型路径（OpenVINO IR格式 .xml）
     # 模型输入: 416x416 RGB图像
     # 模型输出: 4个角点坐标 + objectness + 颜色分类 + 类别分类
-    # 将模型放在 /ros2_ws/models 目录下
-    armor_model_path: "/ros2_ws/models/BRpoints_nano.xml"
+    # 将模型放在 ~/droneAim/TDrone/models 目录下
+    armor_model_path: "~/droneAim/TDrone/models/BRpoints_nano.xml"
     
     # 数字分类模型路径（OpenVINO IR格式 .xml）
     # 模型输入: 28x28 灰度图像
     # 模型输出: 8类分类概率（1-5步兵, 0基地, 6哨兵, 7前哨站）
-    classifier_model_path: "/ros2_ws/models/classifier.xml"
+    classifier_model_path: "~/droneAim/TDrone/models/classifier.xml"
     
     # 颜色过滤标志
     # -1: 不过滤，检测所有颜色装甲板
@@ -56,7 +56,7 @@ visualizer_node:
     # 输出视频文件路径
     # 支持格式: mp4 (推荐), avi
     # 路径不存在时会自动创建
-    output_video_path: "/ros2_ws/output/detection_result.mp4"
+    output_video_path: "~/droneAim/TDrone/output/detection_result.mp4"
     
     # 输出视频帧率（FPS）
     # 应与视频发布节点的fps保持一致

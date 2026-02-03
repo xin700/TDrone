@@ -68,6 +68,12 @@ ENV OpenVINO_DIR=/opt/intel/openvino_2024
 ENV LD_LIBRARY_PATH=/opt/intel/openvino_2024/runtime/lib/intel64:$LD_LIBRARY_PATH
 
 # Install RapidCheck from source (not available in Ubuntu 22.04 repos)
+
+# Install Intel GPU Compute Runtime for OpenVINO GPU inference
+COPY neo/*.deb /tmp/neo/
+RUN cd /tmp/neo && \
+    dpkg -i *.deb && \
+    rm -rf /tmp/neo
 RUN cd /tmp && \
     git clone https://github.com/emil-e/rapidcheck.git && \
     cd rapidcheck && \
@@ -78,27 +84,16 @@ RUN cd /tmp && \
     ldconfig && \
     rm -rf /tmp/rapidcheck
 
-# Install Sophus (Lie group library)
-RUN cd /tmp && \
-    git clone https://github.com/strasdat/Sophus.git && \
-    cd Sophus && \
-    git checkout 1.22.10 && \
-    mkdir build && cd build && \
+# Install Sophus (Lie group library) - Use local copy
+COPY Sophus /tmp/Sophus
+RUN cd /tmp/Sophus && \
+    git reset --hard && git checkout -f 1.22.10 && \
+    mkdir -p build && cd build && \
     cmake .. -DBUILD_SOPHUS_TESTS=OFF -DBUILD_SOPHUS_EXAMPLES=OFF && \
     make -j$(nproc) && \
     make install && \
     rm -rf /tmp/Sophus
 
-# Install Ceres Solver
-RUN cd /tmp && \
-    git clone https://ceres-solver.googlesource.com/ceres-solver && \
-    cd ceres-solver && \
-    git checkout 2.1.0 && \
-    mkdir build && cd build && \
-    cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
-    make -j$(nproc) && \
-    make install && \
-    rm -rf /tmp/ceres-solver
 
 # Setup udev rules for hardware access (cameras, serial ports)
 RUN echo 'SUBSYSTEM=="usb", MODE="0666"' > /etc/udev/rules.d/99-usb.rules && \
